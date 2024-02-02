@@ -1,0 +1,81 @@
+<html>
+	<head>
+		<script>
+			customElements.define(
+				"api-probes",
+				class extends HTMLElement {
+					constructor() {
+						super();
+						this.attachShadow({ mode: "open" });
+					}
+					static get observedAttributes() {
+						return ["loading", "probes"];
+					}
+					get loading() {
+						return JSON.parse(this.getAttribute("loading"));
+					}
+					set loading(v) {
+						this.setAttribute("loading", JSON.stringify(v));
+					}
+					get probes() {
+						return JSON.parse(this.getAttribute("probes"));
+					}
+					set probes(v) {
+						this.setAttribute("probes", JSON.stringify(v));
+					}
+					async fetchAPI(url) {
+						this.loading = true;
+						const response = await fetch(url);
+						const json = await response.json();
+						this.probes = json;
+						this.loading = false;
+					}
+					async connectedCallback() {
+						this.shadowRoot.addEventListener("click", (event) => {
+							const name = event.srcElement.id;
+							if (this[name]) {
+								this[name]();
+							}
+						});
+						await this.fetchAPI("/health.json");
+					}
+					disconnectedCallback() {}
+					attributeChangedCallback(attrName, oldVal, newVal) {
+						this.render();
+					}
+					render() {
+						if (this.loading) {
+							this.shadowRoot.innerHTML = `Loading...`;
+						} else {
+							this.shadowRoot.innerHTML = `
+							<span>
+								<h3><slot name="title"/></h3>
+								<table>
+									<tr>
+										<th>Probe</th>
+										<th>Status</th>
+									</tr>
+									${this.probes.map((probe) => {
+										return `
+											<tr>
+												<td>${probe.service}</td>
+												<td>${probe.status}</td>
+											</tr>
+										`;
+									})}
+								</table>
+							</span>
+        			`;
+						}
+					}
+				}
+			);
+		</script>
+	</head>
+
+	<body>
+		<api-probes>
+			<span slot="title">API Status</span>
+		</api-probes>
+	</body>
+</html>
